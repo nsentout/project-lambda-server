@@ -1,9 +1,9 @@
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef SERVER_HPP
+#define SERVER_HPP
 
 #include <enet/enet.h>
 
-#include "../proto/movement.pb.h"
+#include "../../proto/gamestate.pb.h"
 
 #include <vector>
 
@@ -11,7 +11,10 @@ class Server
 {
 private:
     ENetHost *m_host;
+    ENetAddress *m_address;
     std::vector<ENetPeer*> m_clients;
+
+    lambda::GameState *m_gamestate;
     
     static Server *m_instance;
     int createServer();

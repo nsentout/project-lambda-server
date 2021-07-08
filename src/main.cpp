@@ -3,25 +3,32 @@
 
 #include <chrono>
 
-#include "../proto/movement.pb.h"
+#include "../../proto/gamestate.pb.h"
 #include "Server.hpp"
 
 #define TICKRATE 64
-#define POLL_INTERVAL (1000 / 64) / 1000
+#define POLL_INTERVAL (1000.0 / TICKRATE) / 1000.0
 
 using namespace std;
 
 int main(int argc, char **argv)
 {
+    if (enet_initialize () != 0)
+    {
+        fprintf (stderr, "An error occurred while initializing ENet.\n");
+        return EXIT_FAILURE;
+    }
+
     Server *server = Server::getInstance();
     int i = 0;
 
     if (server != NULL)
     {
-        puts("Server listening ...");
+        puts("Server is listening ...");
+        printf("Poll interval: %f\n", POLL_INTERVAL);
 
-        char *packetReceived;
-        ENetEvent event;
+        char *packet_received;
+        ENetEvent net_event;
         auto start = chrono::system_clock::now();
 
         while (true)
@@ -31,16 +38,17 @@ int main(int argc, char **argv)
             {
                 start = chrono::system_clock::now();
 
-                server->checkPacketBox(packetReceived);
+                server->checkPacketBox(packet_received);
 
                 // Empty the packet
-                packetReceived = NULL;
+                packet_received = NULL;
                 i++;
             }
         }
 
-        delete packetReceived;
+        delete packet_received;
     }
 
     delete server;
+    enet_deinitialize();
 }
