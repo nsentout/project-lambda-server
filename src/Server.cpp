@@ -4,7 +4,6 @@
 #include "Server.hpp"
 #include "Position.hpp"
 
-#include <iostream>
 #include <sstream>
 
 #define HOST_NAME "localhost"
@@ -15,15 +14,14 @@
 #define DEFAULT_PORT 1234
 
 const int PLAYER_WIDTH = 100;
-const Position PLAYER1_SPAWN_POSITION = { 100, 200 };
-const Position PLAYER2_SPAWN_POSITION = { 700 - PLAYER_WIDTH / 2, 200 };
-const Position PLAYER3_SPAWN_POSITION = { 400 - PLAYER_WIDTH / 2, 50 };
+const Position PLAYER1_SPAWN_POSITION = {100, 200};
+const Position PLAYER2_SPAWN_POSITION = {700 - PLAYER_WIDTH / 2, 200};
+const Position PLAYER3_SPAWN_POSITION = {400 - PLAYER_WIDTH / 2, 50};
 
 Server *Server::m_instance = nullptr;
 
 Server::Server() : m_host(nullptr), m_gamestate(new lambda::GameState())
 {
- 
 }
 
 Server::~Server()
@@ -34,10 +32,11 @@ Server::~Server()
 
 void printPacketDescription(const lambda::GameState *gamestate)
 {
-    printf("Packet description:\n");
-    printf("Nb players: %d\n", gamestate->nb_players());
-    for (int i = 0; i < gamestate->nb_players(); i++) {
-        printf("Player %d: (%d,%d)\n", i+1, gamestate->players_data(i).x(), gamestate->players_data(i).y());
+    printf("\tPacket description:\n");
+    printf("\tNb players: %d\n", gamestate->nb_players());
+    for (int i = 0; i < gamestate->nb_players(); i++)
+    {
+        printf("\tPlayer %d: (%d,%d)\n", i + 1, gamestate->players_data(i).x(), gamestate->players_data(i).y());
     }
 }
 
@@ -84,70 +83,35 @@ void Server::checkPacketBox(char *packet_received)
             printf("A new client connected from %x:%u.\n",
                    net_event.peer->address.host,
                    net_event.peer->address.port);
-            
+
+            m_players_index[net_event.peer->address.host] = m_clients.size();
             m_clients.push_back(net_event.peer);
 
-            auto player_data = m_gamestate->add_players_data();
-            m_gamestate->set_nb_players(m_clients.size());
-
-            if (m_gamestate->nb_players() == 1) {
-                player_data->set_x(PLAYER1_SPAWN_POSITION.getX());
-                player_data->set_y(PLAYER1_SPAWN_POSITION.getY());
-            }
-            else if (m_gamestate->nb_players() == 2) {
-                player_data->set_x(PLAYER2_SPAWN_POSITION.getX());
-                player_data->set_y(PLAYER2_SPAWN_POSITION.getY());
-            }
-            else if (m_gamestate->nb_players() == 3) {
-                player_data->set_x(PLAYER3_SPAWN_POSITION.getX());
-                player_data->set_y(PLAYER3_SPAWN_POSITION.getY());
-            }
-            else {
-                player_data->set_x(0);
-                player_data->set_y(0);
-            }
-
-            std::ostringstream serialized_gamestate;
-            m_gamestate->SerializeToOstream(&serialized_gamestate);
-
-            const char* packet_data = serialized_gamestate.str().c_str();
-            ENetPacket *packet = enet_packet_create(packet_data, strlen(packet_data), ENET_PACKET_FLAG_RELIABLE);
-
-            // Send the number of players and the new positions to the connected players
-            enet_host_broadcast(m_host, 0, packet);
-            printf("Sending packet to all clients.\n");
-            printPacketDescription(m_gamestate);
-
-            //event.peer->data = "Client dummy";
+            updateGamestateFirstConnection();
+            broadcastGamestate();
             break;
         }
 
         case ENET_EVENT_TYPE_RECEIVE:
         {
-            std::istringstream unserialized_gamestate(reinterpret_cast<char const *>(net_event.packet->data));
-            lambda::GameState received_gamestate;
-            received_gamestate.ParseFromIstream(&unserialized_gamestate);
-
-            printf("A packet of length %u was received from %d on channel %u.\n",
+            printf("\nA packet of length %u was received from %d on channel %u.\n",
                    net_event.packet->dataLength,
                    net_event.peer->address.host,
                    net_event.channelID);
-            ENetPeer *peer = net_event.peer;
+
             packet_received = (char *)net_event.packet->data;
-            //TODO: mettre à jour le gamestate avec les infos recus
-            //TODO: client se déco tout seul ?
 
-            puts("===\nserver send\n===");
-            printPacketDescription(&received_gamestate);
+            std::istringstream unserialized_playeraction(reinterpret_cast<char const *>(net_event.packet->data));
+            lambda::PlayerAction received_playerAction;
+            received_playerAction.ParseFromIstream(&unserialized_playeraction);
 
-            const char* packet_received_data = unserialized_gamestate.str().c_str();
-            //ENetPacket *packet = enet_packet_create(net_event.packet->data, strlen(net_event.packet->data), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
-            //enet_host_broadcast(m_host, 0, net_event.packet);
-            ENetPacket *packet = enet_packet_create(packet_received_data, strlen(packet_received_data), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
-            enet_host_broadcast(m_host, 0, packet);
-            puts("Sending packet direction to all clients.");
+            int player_index = m_players_index[net_event.peer->address.host];
+            m_gamestate->mutable_players_data(player_index)->set_x(received_playerAction.new_x());
+            m_gamestate->mutable_players_data(player_index)->set_y(received_playerAction.new_y());
 
-            /* Clean up the packet now that we're done using it. */
+            broadcastGamestate();
+
+            // Clean up the packet now that we're done using it.
             enet_packet_destroy(net_event.packet);
 
             break;
@@ -157,9 +121,39 @@ void Server::checkPacketBox(char *packet_received)
         case ENET_EVENT_TYPE_DISCONNECT:
             printf("%x disconnected.\n", net_event.peer->address.host);
 
-            m_gamestate->set_nb_players(m_gamestate->nb_players() - 1) ;
+            int disconnected_player_index = m_players_index[net_event.peer->address.host];
+            disconnectPlayer(disconnected_player_index);
         }
     }
+}
+
+void Server::updateGamestateFirstConnection()
+{
+    auto player_data = m_gamestate->add_players_data();
+    m_gamestate->set_nb_players(m_clients.size());
+
+    if (m_gamestate->nb_players() == 1)
+    {
+        player_data->set_x(PLAYER1_SPAWN_POSITION.getX());
+        player_data->set_y(PLAYER1_SPAWN_POSITION.getY());
+    }
+    else if (m_gamestate->nb_players() == 2)
+    {
+        player_data->set_x(PLAYER2_SPAWN_POSITION.getX());
+        player_data->set_y(PLAYER2_SPAWN_POSITION.getY());
+    }
+    else if (m_gamestate->nb_players() == 3)
+    {
+        player_data->set_x(PLAYER3_SPAWN_POSITION.getX());
+        player_data->set_y(PLAYER3_SPAWN_POSITION.getY());
+    }
+    else
+    {
+        player_data->set_x(0);
+        player_data->set_y(0);
+    }
+
+    //event.peer->data = "Client dummy";
 }
 
 void Server::disconnect()
@@ -167,6 +161,40 @@ void Server::disconnect()
     //TODO: notice clients
 
     enet_host_destroy(m_host);
+}
+
+void Server::disconnectPlayer(int disconnected_player_index)
+{
+    m_players_index.erase(disconnected_player_index);
+    m_gamestate->set_nb_players(m_gamestate->nb_players() - 1);
+    m_clients.erase(m_clients.begin() + disconnected_player_index);
+    m_gamestate->mutable_players_data()->erase(m_gamestate->players_data().begin() + disconnected_player_index);
+}
+
+void Server::broadcastGamestate()
+{
+    std::string packet_data = getStringFromGamestate(m_gamestate);
+    ENetPacket *packet = enet_packet_create(packet_data.data(), packet_data.size(), ENET_PACKET_FLAG_RELIABLE);
+
+    // Send the number of players and the new positions to the connected players
+    enet_host_broadcast(m_host, 0, packet);
+    printf("Sending following packet to all clients :\n");
+    printPacketDescription(m_gamestate);
+}
+
+const std::string Server::getStringFromGamestate(lambda::GameState *gamestate) const
+{
+    std::string serialized_gamestate;
+    gamestate->SerializeToString(&serialized_gamestate);
+    return serialized_gamestate;
+}
+
+const lambda::PlayerAction Server::getPlayerActionFromPacket(ENetEvent *net_event) const
+{
+    std::istringstream unserialized_playeraction(reinterpret_cast<char const *>(net_event->packet->data));
+    lambda::PlayerAction received_playerAction;
+    received_playerAction.ParseFromIstream(&unserialized_playeraction);
+    return received_playerAction;
 }
 
 Server *Server::getInstance()
@@ -183,7 +211,7 @@ Server *Server::getInstance()
     return Server::m_instance;
 }
 
-ENetHost* Server::getHost() 
+ENetHost *Server::getHost()
 {
-    return m_host;    
+    return m_host;
 }
