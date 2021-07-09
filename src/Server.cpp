@@ -169,6 +169,14 @@ void Server::disconnectPlayer(ENetPeer *peer)
     int disconnected_player_index = m_players_index[peer_address];
 
     m_players_index.erase(peer_address);
+    // Update the players' indexes
+    for (auto const& [address, index] : m_players_index)
+    {
+        if (index > disconnected_player_index) {
+            m_players_index[address] -= 1;
+        }
+    }
+
     m_gamestate->set_nb_players(m_gamestate->nb_players() - 1);
     m_clients.erase(m_clients.begin() + disconnected_player_index);
     m_gamestate->mutable_players_data()->erase(m_gamestate->players_data().begin() + disconnected_player_index);
