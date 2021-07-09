@@ -6,6 +6,7 @@
 #include "../../proto/gamestate.pb.h"
 #include "../../proto/playeraction.pb.h"
 
+#include <string>
 #include <vector>
 #include <map>
 
@@ -19,17 +20,18 @@ private:
     /**
      * Link the client's address to its index in the positions array
      */
-    std::map<enet_uint32, int> m_players_index;
+    std::map<std::string, int> m_players_index;
 
     lambda::GameState *m_gamestate;
     
     static Server *m_instance;
     int createServer();
     void updateGamestateFirstConnection(ENetPeer *new_client);
-    void disconnectPlayer(int disconnected_player_index);
+    void disconnectPlayer(ENetPeer *peer);
     void updateGamestateFirstConnection();
     void broadcastGamestate();
     const std::string  getStringFromGamestate(lambda::GameState *gamestate) const;
+    const std::string getStringFromENetPeerAddress(ENetPeer *peer) const;
     const lambda::PlayerAction getPlayerActionFromPacket(ENetEvent *net_event) const;
 
 public:

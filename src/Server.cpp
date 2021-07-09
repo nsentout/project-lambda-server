@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 
 #include "Server.hpp"
 #include "Position.hpp"
@@ -84,7 +83,8 @@ void Server::checkPacketBox(char *packet_received)
                    net_event.peer->address.host,
                    net_event.peer->address.port);
 
-            m_players_index[net_event.peer->address.host] = m_clients.size();
+            std::string client_address = getStringFromENetPeerAddress(net_event.peer);
+            m_players_index[client_address] = m_clients.size();
             m_clients.push_back(net_event.peer);
 
             updateGamestateFirstConnection();
@@ -105,7 +105,8 @@ void Server::checkPacketBox(char *packet_received)
             lambda::PlayerAction received_playerAction;
             received_playerAction.ParseFromIstream(&unserialized_playeraction);
 
-            int player_index = m_players_index[net_event.peer->address.host];
+            std::string client_address = getStringFromENetPeerAddress(net_event.peer);
+            int player_index = m_players_index[client_address];
             m_gamestate->mutable_players_data(player_index)->set_x(received_playerAction.new_x());
             m_gamestate->mutable_players_data(player_index)->set_y(received_playerAction.new_y());
 
@@ -121,8 +122,7 @@ void Server::checkPacketBox(char *packet_received)
         case ENET_EVENT_TYPE_DISCONNECT:
             printf("%x disconnected.\n", net_event.peer->address.host);
 
-            int disconnected_player_index = m_players_index[net_event.peer->address.host];
-            disconnectPlayer(disconnected_player_index);
+            disconnectPlayer(net_event.peer);
         }
     }
 }
@@ -163,9 +163,12 @@ void Server::disconnect()
     enet_host_destroy(m_host);
 }
 
-void Server::disconnectPlayer(int disconnected_player_index)
+void Server::disconnectPlayer(ENetPeer *peer)
 {
-    m_players_index.erase(disconnected_player_index);
+    std::string peer_address = getStringFromENetPeerAddress(peer);
+    int disconnected_player_index = m_players_index[peer_address];
+
+    m_players_index.erase(peer_address);
     m_gamestate->set_nb_players(m_gamestate->nb_players() - 1);
     m_clients.erase(m_clients.begin() + disconnected_player_index);
     m_gamestate->mutable_players_data()->erase(m_gamestate->players_data().begin() + disconnected_player_index);
@@ -195,6 +198,11 @@ const lambda::PlayerAction Server::getPlayerActionFromPacket(ENetEvent *net_even
     lambda::PlayerAction received_playerAction;
     received_playerAction.ParseFromIstream(&unserialized_playeraction);
     return received_playerAction;
+}
+
+const std::string Server::getStringFromENetPeerAddress(ENetPeer *peer) const
+{
+    return std::to_string(peer->address.host) + ":" + std::to_string(peer->address.port);
 }
 
 Server *Server::getInstance()
