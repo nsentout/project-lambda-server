@@ -19,7 +19,7 @@ const Position PLAYER3_SPAWN_POSITION = {400 - PLAYER_WIDTH / 2, 50};
 
 Server *Server::m_instance = nullptr;
 
-Server::Server() : m_host(nullptr), m_gamestate(new lambda::GameState())
+Server::Server() : m_host(nullptr), m_gamestate(new lambda::GameState()), m_player_id_counter(0)
 {
 }
 
@@ -132,6 +132,7 @@ void Server::updateGamestateFirstConnection()
 {
     auto player_data = m_gamestate->add_players_data();
     m_gamestate->set_nb_players(m_clients.size());
+    player_data->set_id(m_player_id_counter);
 
     if (m_gamestate->nb_players() == 1)
     {
@@ -154,6 +155,7 @@ void Server::updateGamestateFirstConnection()
         player_data->set_y(0);
     }
 
+    m_player_id_counter ++;
     //event.peer->data = "Client dummy";
 }
 

@@ -27,6 +27,8 @@ private:
     std::map<std::string, int> m_players_index;
 
     lambda::GameState *m_gamestate;
+
+    int m_player_id_counter;
     
     static Server *m_instance;
 
@@ -43,8 +45,8 @@ public:
     Server();
     virtual ~Server();
 
-    void sendPacket(const char* packetContent);
-    void checkPacketBox(ENetEvent *net_event, char *packetReceived);
+    void sendPacket(const char* packet_content);
+    void checkPacketBox(ENetEvent *net_event, char *packet_received);
     void disconnect();
 
     static Server* getInstance();
