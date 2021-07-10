@@ -102,11 +102,11 @@ void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
 
         packet_received = (char *)net_event->packet->data;
 
-        lambda::PlayerAction received_playerAction = getPlayerActionFromPacket(net_event);
+        lambda::PlayerAction received_playerAction = getPlayerActionFromPacket(net_event->packet);
 
         std::string client_address = getStringFromENetPeerAddress(net_event->peer);
 
-        // Update the player position
+        // Update the player's position
         int player_index = m_players_index[client_address];
         m_gamestate->mutable_players_data(player_index)->set_x(received_playerAction.new_x());
         m_gamestate->mutable_players_data(player_index)->set_y(received_playerAction.new_y());
@@ -155,7 +155,7 @@ void Server::updateGamestateFirstConnection()
         player_data->set_y(0);
     }
 
-    m_player_id_counter ++;
+    m_player_id_counter++;
     //event.peer->data = "Client dummy";
 }
 
@@ -204,11 +204,10 @@ const std::string Server::getStringFromGamestate(lambda::GameState *gamestate) c
     return serialized_gamestate;
 }
 
-const lambda::PlayerAction Server::getPlayerActionFromPacket(ENetEvent *net_event) const
+const lambda::PlayerAction Server::getPlayerActionFromPacket(ENetPacket *packet) const
 {
-    std::istringstream unserialized_playeraction(reinterpret_cast<char const *>(net_event->packet->data));
     lambda::PlayerAction received_playerAction;
-    received_playerAction.ParseFromIstream(&unserialized_playeraction);
+    received_playerAction.ParseFromArray(packet->data, packet->dataLength);
     return received_playerAction;
 }
 

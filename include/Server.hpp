@@ -39,7 +39,7 @@ private:
     void broadcastGamestate() const;
     const std::string getStringFromGamestate(lambda::GameState *gamestate) const;
     const std::string getStringFromENetPeerAddress(ENetPeer *peer) const;
-    const lambda::PlayerAction getPlayerActionFromPacket(ENetEvent *net_event) const;
+    const lambda::PlayerAction getPlayerActionFromPacket(ENetPacket *packet) const;
 
 public:
     Server();
