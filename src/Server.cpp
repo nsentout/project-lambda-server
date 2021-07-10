@@ -83,6 +83,7 @@ void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
                net_event->peer->address.host,
                net_event->peer->address.port);
 
+        // Add new player
         std::string client_address = getStringFromENetPeerAddress(net_event->peer);
         m_players_index[client_address] = m_clients.size();
         m_clients.push_back(net_event->peer);
@@ -101,11 +102,11 @@ void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
 
         packet_received = (char *)net_event->packet->data;
 
-        std::istringstream unserialized_playeraction(reinterpret_cast<char const *>(net_event->packet->data));
-        lambda::PlayerAction received_playerAction;
-        received_playerAction.ParseFromIstream(&unserialized_playeraction);
+        lambda::PlayerAction received_playerAction = getPlayerActionFromPacket(net_event);
 
         std::string client_address = getStringFromENetPeerAddress(net_event->peer);
+
+        // Update the player position
         int player_index = m_players_index[client_address];
         m_gamestate->mutable_players_data(player_index)->set_x(received_playerAction.new_x());
         m_gamestate->mutable_players_data(player_index)->set_y(received_playerAction.new_y());
@@ -183,7 +184,7 @@ void Server::disconnectPlayer(ENetPeer *peer)
     m_gamestate->mutable_players_data()->erase(m_gamestate->players_data().begin() + disconnected_player_index);
 }
 
-void Server::broadcastGamestate()
+void Server::broadcastGamestate() const
 {
     std::string packet_data = getStringFromGamestate(m_gamestate);
     ENetPacket *packet = enet_packet_create(packet_data.data(), packet_data.size(), ENET_PACKET_FLAG_RELIABLE);
@@ -228,7 +229,7 @@ Server *Server::getInstance()
     return Server::m_instance;
 }
 
-ENetHost *Server::getHost()
+ENetHost *Server::getHost() const
 {
     return m_host;
 }
