@@ -65,65 +65,65 @@ int Server::createServer()
     return 1;
 }
 
+#define TICKRATE 64
+#define POLL_INTERVAL (1000.0 / TICKRATE)
+
 /**
  * Checks if a packet is in the waiting queue.
  * If there is, packet_received will be assigned its value.
  */
-void Server::checkPacketBox(char *packet_received)
+void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
 {
-    ENetEvent net_event;
-    while (enet_host_service(m_host, &net_event, 0) > 0)
+    switch (net_event->type)
     {
-        switch (net_event.type)
-        {
-        // Only the "peer" field of the event structure is valid for this event
-        case ENET_EVENT_TYPE_CONNECT:
-        {
-            printf("A new client connected from %x:%u.\n",
-                   net_event.peer->address.host,
-                   net_event.peer->address.port);
+    // Only the "peer" field of the event structure is valid for this event
+    case ENET_EVENT_TYPE_CONNECT:
+    {
+        printf("A new client connected from %x:%u.\n",
+               net_event->peer->address.host,
+               net_event->peer->address.port);
 
-            std::string client_address = getStringFromENetPeerAddress(net_event.peer);
-            m_players_index[client_address] = m_clients.size();
-            m_clients.push_back(net_event.peer);
+        std::string client_address = getStringFromENetPeerAddress(net_event->peer);
+        m_players_index[client_address] = m_clients.size();
+        m_clients.push_back(net_event->peer);
 
-            updateGamestateFirstConnection();
-            broadcastGamestate();
-            break;
-        }
+        updateGamestateFirstConnection();
+        broadcastGamestate();
+        break;
+    }
 
-        case ENET_EVENT_TYPE_RECEIVE:
-        {
-            printf("\nA packet of length %u was received from %d on channel %u.\n",
-                   net_event.packet->dataLength,
-                   net_event.peer->address.host,
-                   net_event.channelID);
+    case ENET_EVENT_TYPE_RECEIVE:
+    {
+        printf("\nA packet of length %u was received from %d on channel %u.\n",
+               net_event->packet->dataLength,
+               net_event->peer->address.host,
+               net_event->channelID);
 
-            packet_received = (char *)net_event.packet->data;
+        packet_received = (char *)net_event->packet->data;
 
-            std::istringstream unserialized_playeraction(reinterpret_cast<char const *>(net_event.packet->data));
-            lambda::PlayerAction received_playerAction;
-            received_playerAction.ParseFromIstream(&unserialized_playeraction);
+        std::istringstream unserialized_playeraction(reinterpret_cast<char const *>(net_event->packet->data));
+        lambda::PlayerAction received_playerAction;
+        received_playerAction.ParseFromIstream(&unserialized_playeraction);
 
-            std::string client_address = getStringFromENetPeerAddress(net_event.peer);
-            int player_index = m_players_index[client_address];
-            m_gamestate->mutable_players_data(player_index)->set_x(received_playerAction.new_x());
-            m_gamestate->mutable_players_data(player_index)->set_y(received_playerAction.new_y());
+        std::string client_address = getStringFromENetPeerAddress(net_event->peer);
+        int player_index = m_players_index[client_address];
+        m_gamestate->mutable_players_data(player_index)->set_x(received_playerAction.new_x());
+        m_gamestate->mutable_players_data(player_index)->set_y(received_playerAction.new_y());
 
-            broadcastGamestate();
+        broadcastGamestate();
 
-            // Clean up the packet now that we're done using it.
-            enet_packet_destroy(net_event.packet);
+        // Clean up the packet now that we're done using it.
+        enet_packet_destroy(net_event->packet);
 
-            break;
-        }
+        break;
+    }
 
-        // Only the "peer" field of the event structure is valid for this event and contains the peer that disconnected
-        case ENET_EVENT_TYPE_DISCONNECT:
-            printf("%x disconnected.\n", net_event.peer->address.host);
+    // Only the "peer" field of the event structure is valid for this event and contains the peer that disconnected
+    case ENET_EVENT_TYPE_DISCONNECT:
+        printf("%x:%hu disconnected.\n", net_event->peer->address.host, net_event->peer->address.port);
 
-            disconnectPlayer(net_event.peer);
-        }
+        //TODO: notice clients pour mettre à jour la fenetre
+        disconnectPlayer(net_event->peer);
     }
 }
 
@@ -170,9 +170,10 @@ void Server::disconnectPlayer(ENetPeer *peer)
 
     m_players_index.erase(peer_address);
     // Update the players' indexes
-    for (auto const& [address, index] : m_players_index)
+    for (auto const &[address, index] : m_players_index)
     {
-        if (index > disconnected_player_index) {
+        if (index > disconnected_player_index)
+        {
             m_players_index[address] -= 1;
         }
     }
