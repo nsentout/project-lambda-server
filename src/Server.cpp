@@ -159,7 +159,7 @@ void Server::updateGamestateFirstConnection()
 
 void Server::disconnect()
 {
-    //TODO: notice clients
+    //TODO: notice clients that the server disconnected
 
     enet_host_destroy(m_host);
 }
