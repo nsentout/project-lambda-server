@@ -24,23 +24,20 @@ int main(int argc, char **argv)
         puts("Server is listening ...");
         printf("Poll interval: %f ms\n", POLL_INTERVAL_MS);
 
-        char *packet_received;
         ENetEvent net_event;
 
         while (true)
         {
             while (enet_host_service(server->getHost(), &net_event, POLL_INTERVAL_MS) > 0)
             {
-                server->checkPacketBox(&net_event, packet_received);
+                server->handlePacketReceipt(&net_event);
             }
-
-            // Empty the packet
-            packet_received = NULL;
         }
 
-        delete packet_received;
     }
 
+    server->disconnect();
     delete server;
+
     enet_deinitialize();
 }

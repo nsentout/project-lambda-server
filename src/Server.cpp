@@ -25,7 +25,6 @@ Server::Server() : m_host(nullptr), m_gamestate(new lambda::GameState()), m_play
 
 Server::~Server()
 {
-    this->disconnect();
     delete m_address;
 }
 
@@ -65,14 +64,7 @@ int Server::createServer()
     return 1;
 }
 
-#define TICKRATE 64
-#define POLL_INTERVAL (1000.0 / TICKRATE)
-
-/**
- * Checks if a packet is in the waiting queue.
- * If there is, packet_received will be assigned its value.
- */
-void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
+void Server::handlePacketReceipt(ENetEvent *net_event)
 {
     switch (net_event->type)
     {
@@ -100,8 +92,6 @@ void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
                net_event->peer->address.host,
                net_event->channelID);
 
-        packet_received = (char *)net_event->packet->data;
-
         lambda::PlayerAction received_playerAction = getPlayerActionFromPacket(net_event->packet);
 
         std::string client_address = getStringFromENetPeerAddress(net_event->peer);
@@ -123,8 +113,16 @@ void Server::checkPacketBox(ENetEvent *net_event, char *packet_received)
     case ENET_EVENT_TYPE_DISCONNECT:
         printf("%x:%hu disconnected.\n", net_event->peer->address.host, net_event->peer->address.port);
 
-        //TODO: notice clients pour mettre à jour la fenetre
         disconnectPlayer(net_event->peer);
+
+        // Notice connected clients that a client disconnected
+        std::string disconnected_peer_address = getStringFromENetPeerAddress(net_event->peer);
+        int disconnected_player_index = m_players_index[disconnected_peer_address];
+        m_gamestate->set_player_disconnected_id(disconnected_player_index);
+
+        broadcastGamestate();
+
+        m_gamestate->clear_player_disconnected_id();
     }
 }
 

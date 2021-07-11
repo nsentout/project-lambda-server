@@ -46,7 +46,7 @@ public:
     virtual ~Server();
 
     void sendPacket(const char* packet_content);
-    void checkPacketBox(ENetEvent *net_event, char *packet_received);
+    void handlePacketReceipt(ENetEvent *net_event);
     void disconnect();
 
     static Server* getInstance();
