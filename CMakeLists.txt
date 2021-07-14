@@ -16,5 +16,9 @@ include_directories(include ${ENET_INCLUDE_DIRS} ${Protobuf_INCLUDE_DIRS})
 file(GLOB SOURCES src/*.cpp src/*.c proto/*.cc)
 file(GLOB HEADERS include/*.hpp include/*.h proto/*.h)
 
-add_executable(server ${SOURCES} ${HEADERS})
+# Compile proto files
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS proto/gamestate.proto proto/playeraction.proto)
+
+add_executable(server ${SOURCES} ${HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(server ${ENET_LIBRARIES} ${Protobuf_LIBRARIES})

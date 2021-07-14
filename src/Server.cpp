@@ -87,7 +87,7 @@ void Server::handlePacketReceipt(ENetEvent *net_event)
 
     case ENET_EVENT_TYPE_RECEIVE:
     {
-        printf("\nA packet of length %u was received from %d on channel %u.\n",
+        printf("\nA packet of length %lu was received from %d on channel %u.\n",
                net_event->packet->dataLength,
                net_event->peer->address.host,
                net_event->channelID);
