@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include "Server.hpp"
-#include "Position.hpp"
+#include "Position.h"
 
 #include <sstream>
 
@@ -134,18 +134,18 @@ void Server::updateGamestateFirstConnection()
 
     if (m_gamestate->nb_players() == 1)
     {
-        player_data->set_x(PLAYER1_SPAWN_POSITION.getX());
-        player_data->set_y(PLAYER1_SPAWN_POSITION.getY());
+        player_data->set_x(PLAYER1_SPAWN_POSITION.x);
+        player_data->set_y(PLAYER1_SPAWN_POSITION.y);
     }
     else if (m_gamestate->nb_players() == 2)
     {
-        player_data->set_x(PLAYER2_SPAWN_POSITION.getX());
-        player_data->set_y(PLAYER2_SPAWN_POSITION.getY());
+        player_data->set_x(PLAYER2_SPAWN_POSITION.x);
+        player_data->set_y(PLAYER2_SPAWN_POSITION.y);
     }
     else if (m_gamestate->nb_players() == 3)
     {
-        player_data->set_x(PLAYER3_SPAWN_POSITION.getX());
-        player_data->set_y(PLAYER3_SPAWN_POSITION.getY());
+        player_data->set_x(PLAYER3_SPAWN_POSITION.x);
+        player_data->set_y(PLAYER3_SPAWN_POSITION.y);
     }
     else
     {
