@@ -13,7 +13,7 @@
 #define DEFAULT_PORT 1234
 
 const int PLAYER_WIDTH = 100;
-const Position PLAYER1_SPAWN_POSITION = {100, 200};
+const Position PLAYER1_SPAWN_POSITION = {0, 0};
 const Position PLAYER2_SPAWN_POSITION = {700 - PLAYER_WIDTH / 2, 200};
 const Position PLAYER3_SPAWN_POSITION = {400 - PLAYER_WIDTH / 2, 50};
 
@@ -113,12 +113,12 @@ void Server::handlePacketReceipt(ENetEvent *net_event)
     case ENET_EVENT_TYPE_DISCONNECT:
         printf("%x:%hu disconnected.\n", net_event->peer->address.host, net_event->peer->address.port);
 
-        disconnectPlayer(net_event->peer);
-
         // Notice connected clients that a client disconnected
         std::string disconnected_peer_address = getStringFromENetPeerAddress(net_event->peer);
         int disconnected_player_index = m_players_index[disconnected_peer_address];
-        m_gamestate->set_player_disconnected_id(disconnected_player_index);
+        m_gamestate->set_player_disconnected_id(disconnected_player_index + 1); // send + 1 to not be ignored by the client if the index is 0
+
+        disconnectPlayer(net_event->peer);
 
         broadcastGamestate();
 
